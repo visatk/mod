@@ -11,7 +11,7 @@
     "deploy": "wrangler types && npm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:remote": "wrangler d1 migrations apply visatk --remote",
+    "db:migrate:remote": "wrangler d1 migrations apply viteapp --remote",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
