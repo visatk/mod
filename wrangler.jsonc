@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ego",
+  "name": "mod",
   "main": "worker/index.ts",
   "upload_source_maps": true,
   "compatibility_date": "2026-06-17",
@@ -20,6 +20,12 @@
       "binding": "DB",
       "database_name": "viteapp",
       "database_id": "9909fa7a-c277-4b38-96bf-b97a8008dece"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "visatk"
     }
   ]
 }
