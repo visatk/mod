@@ -1,344 +1,465 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from "react";
 import { 
-  Battery, HardDrive, Cpu, Wifi, Bluetooth, Volume2, Globe, Monitor, 
-  Settings, Clock, MessageSquare, PhoneCall, Phone, Folder, Activity, 
-  Bell, Power, Search, Shield, ChevronRight, TerminalSquare, AlertTriangle,
-  Minus, Plus
-} from 'lucide-react';
+  Activity, 
+  AlertCircle, 
+  ArrowUpRight, 
+  BarChart3, 
+  Bell, 
+  CheckCircle2, 
+  ChevronDown, 
+  CreditCard, 
+  Download, 
+  Filter, 
+  Layers, 
+  LayoutDashboard, 
+  Plus, 
+  RefreshCw, 
+  Search, 
+  Settings, 
+  SlidersHorizontal, 
+  TrendingUp, 
+  Users 
+} from "lucide-react";
 
-// --- MOCK DATA ---
-const FLEET_DEVICES = [
-  { id: 'dev_1', name: 'Xiaomi 23076RN4BI', hash: '8dfdfa9b342406ab', battery: 69, status: 'online' },
-  { id: 'dev_2', name: 'Samsung SM-G998B', hash: '1a2b3c4d5e6f7g8h', battery: 24, status: 'offline' },
-  { id: 'dev_3', name: 'Pixel 7 Pro', hash: '9z8y7x6w5v4u3t2s', battery: 88, status: 'online' },
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+
+// Mock operational data for data tables and charts
+const metricsData = [
+  { id: "TX-9021", user: "Sophia Martinez", type: "API Gateway", status: "Active", volume: "2.4M", performance: 99.8, date: "Just now" },
+  { id: "TX-8842", user: "Liam Henderson", type: "Edge Worker", status: "Active", volume: "840K", performance: 100.0, date: "3 mins ago" },
+  { id: "TX-7319", user: "Noah Albright", type: "KV Storage", status: "Degraded", volume: "1.2M", performance: 94.2, date: "12 mins ago" },
+  { id: "TX-6104", user: "Emma Watson", type: "API Gateway", status: "Active", volume: "4.1M", performance: 99.9, date: "45 mins ago" },
+  { id: "TX-5512", user: "Oliver Queen", type: "D1 Database", status: "Maintenance", volume: "310K", performance: 88.5, date: "1 hour ago" },
 ];
 
-const PERMISSIONS = [
-  { label: 'SMS INTERCEPT', status: 'GRANTED' },
-  { label: 'SMS TRANSMIT', status: 'GRANTED' },
-  { label: 'SMS ARCHIVE', status: 'GRANTED' },
-  { label: 'VOICE UPLINK', status: 'GRANTED' },
-  { label: 'IDENTITY READ', status: 'GRANTED' },
-  { label: 'SYSTEM ALERT', status: 'DENIED' },
-];
+export default function Home() {
+  const [activeTab, setActiveTab] = useState("overview");
+  const [filterType, setFilterType] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-// --- REUSABLE COMPONENTS ---
+  // Simulates standard background dataset synchronization
+  const handleSync = () => {
+    setIsRefreshing(true);
+    const promise = new Promise((resolve) => setTimeout(resolve, 1200));
+    toast.promise(promise, {
+      loading: "Synchronizing infrastructure state...",
+      success: () => {
+        setIsRefreshing(false);
+        return "Metrics successfully synchronized.";
+      },
+      error: "Synchronization failure.",
+    });
+  };
 
-interface StatCardProps {
-  title: string;
-  icon?: React.ElementType;
-  value?: string | React.ReactNode;
-  subtitle?: string;
-  progress?: number;
-  children?: React.ReactNode;
-}
-
-const StatCard: React.FC<StatCardProps> = ({ title, icon: Icon, value, subtitle, progress, children }) => (
-  <div className="bg-[#0b0b10] border border-[#1a1a24] rounded-lg p-4 flex flex-col justify-between hover:border-[#2a2a35] transition-colors">
-    <div className="flex justify-between items-start mb-3">
-      <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-widest">{title}</span>
-      {Icon && <Icon className="w-4 h-4 text-red-600/80" aria-hidden="true" />}
-    </div>
-    {children ? (
-      children
-    ) : (
-      <div>
-        <div className="text-lg font-bold text-gray-100 mb-2">{value}</div>
-        {progress !== undefined && (
-          <div className="w-full bg-[#1a1a24] h-1 rounded-full mb-2 overflow-hidden" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
-            <div className="bg-red-600 h-full shadow-[0_0_8px_rgba(220,38,38,0.6)]" style={{ width: `${progress}%` }} />
-          </div>
-        )}
-        {subtitle && <div className="text-[10px] text-gray-500">{subtitle}</div>}
-      </div>
-    )}
-  </div>
-);
-
-const PermissionBadge: React.FC<{ label: string; status: string }> = ({ label, status }) => {
-  const isGranted = status === 'GRANTED';
-  return (
-    <div className="flex items-center justify-between p-3 bg-[#0b0b10] border border-[#1a1a24] rounded-md">
-      <span className="text-xs text-gray-400 font-medium tracking-wide">{label}</span>
-      <span className={`text-[9px] px-2 py-0.5 rounded uppercase font-bold tracking-widest border ${
-        isGranted 
-          ? 'text-[#00e676] bg-[#00e676]/10 border-[#00e676]/30' 
-          : 'text-red-500 bg-red-500/10 border-red-500/30'
-      }`}>
-        {status}
-      </span>
-    </div>
-  );
-};
-
-// --- MAIN LAYOUT COMPONENT ---
-
-export default function C2Dashboard() {
-  const [currentTime, setCurrentTime] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Clock sync
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      setCurrentTime(now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  // Filter pipeline optimized for client rendering responsiveness
+  const filteredMetrics = metricsData.filter((item) => {
+    const matchesType = filterType === "all" || item.type.toLowerCase().includes(filterType.toLowerCase());
+    const matchesSearch = item.user.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          item.type.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesType && matchesSearch;
+  });
 
   return (
-    <div className="flex h-screen w-full bg-[#050508] text-gray-300 font-sans overflow-hidden selection:bg-red-900/50">
-      
-      {/* SIDEBAR NAVIGATION */}
-      <aside className="w-64 flex flex-col bg-[#08080c] border-r border-[#1a1a24] z-10" aria-label="Main Navigation">
-        {/* Branding */}
-        <div className="p-6 flex flex-col items-center border-b border-[#1a1a24]">
-          <Shield className="w-10 h-10 text-red-600 mb-2 drop-shadow-[0_0_10px_rgba(220,38,38,0.5)]" aria-hidden="true" />
-          <h1 className="text-xl font-bold text-white tracking-widest">TESVRIX</h1>
-          <div className="flex items-center gap-2 mt-2 bg-[#00e676]/10 px-2 py-1 rounded-full border border-[#00e676]/20">
-            <div className="w-1.5 h-1.5 rounded-full bg-[#00e676] animate-pulse" />
-            <span className="text-[9px] text-[#00e676] uppercase tracking-widest font-bold">Secure Link</span>
+    <div className="flex min-h-screen w-full flex-col bg-slate-50/50 dark:bg-zinc-950 md:flex-row">
+      {/* Structural Application Workspace Navigation */}
+      <aside className="hidden border-r border-slate-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 md:block md:w-64 shrink-0">
+        <div className="flex h-16 items-center px-6 border-b border-slate-200 dark:border-zinc-800">
+          <div className="flex items-center gap-2.5 font-semibold tracking-tight text-slate-900 dark:text-zinc-50">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+              <Layers className="h-4 w-4" />
+            </div>
+            <span>Vortex Engine</span>
           </div>
         </div>
-
-        {/* Nav Links */}
-        <nav className="flex-1 py-4 overflow-y-auto custom-scrollbar">
-          <ul className="space-y-1">
-            {[
-              { icon: MessageSquare, label: 'SMS CENTER' },
-              { icon: PhoneCall, label: 'CALL COMMAND' },
-              { icon: Phone, label: 'CALL LOG' },
-              { icon: Folder, label: 'FILE MANAGER' },
-              { icon: TerminalSquare, label: 'ACTIONS' },
-              { icon: Bell, label: 'NOTIFICATIONS' },
-              { icon: Activity, label: 'DEVICE STATS', active: true },
-              { icon: Shield, label: 'SECURITY' },
-            ].map((item, idx) => (
-              <li key={idx}>
-                <button 
-                  className={`w-full flex items-center gap-3 px-6 py-3 text-xs font-medium tracking-wide transition-all ${
-                    item.active 
-                      ? 'text-red-500 bg-red-950/20 border-r-2 border-red-600' 
-                      : 'text-gray-500 hover:text-gray-300 hover:bg-[#111116]'
-                  }`}
-                  aria-current={item.active ? 'page' : undefined}
-                >
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
-                </button>
-              </li>
-            ))}
-          </ul>
+        <nav className="flex flex-col gap-1 p-4">
+          <Button variant="ghost" className="justify-start gap-3 text-slate-700 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800" size="sm">
+            <LayoutDashboard className="h-4 w-4" /> Overview
+          </Button>
+          <Button variant="ghost" className="justify-start gap-3 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60" size="sm">
+            <Activity className="h-4 w-4" /> Telemetry
+          </Button>
+          <Button variant="ghost" className="justify-start gap-3 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60" size="sm">
+            <BarChart3 className="h-4 w-4" /> Analytics
+          </Button>
+          <Button variant="ghost" className="justify-start gap-3 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60" size="sm">
+            <SlidersHorizontal className="h-4 w-4" /> Deployments
+          </Button>
+          <Button variant="ghost" className="justify-start gap-3 text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/60" size="sm">
+            <Settings className="h-4 w-4" /> Configuration
+          </Button>
         </nav>
-
-        {/* Action Bottom */}
-        <div className="p-4 border-t border-[#1a1a24]">
-          <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-950/30 text-red-500 border border-red-900/50 rounded-md hover:bg-red-900/50 hover:text-white transition-colors text-xs font-bold tracking-widest">
-            <Power className="w-3 h-3" />
-            DISCONNECT
-          </button>
-        </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col min-w-0">
-        
-        {/* TOP COMMAND BAR */}
-        <header className="h-14 bg-[#08080c] border-b border-[#1a1a24] flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center text-xs font-mono text-gray-500 tracking-wider">
-            <TerminalSquare className="w-4 h-4 mr-2 text-gray-600" />
-            <span className="hover:text-gray-300 cursor-pointer">OPERATOR</span>
-            <ChevronRight className="w-3 h-3 mx-2" />
-            <span className="text-red-500 font-semibold">DEVICE STATS</span>
+      {/* Main Screen Layout Area */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Responsive Control Global Header */}
+        <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/80 sm:px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:hidden">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Layers className="h-4 w-4" />
+              </div>
+              <span className="font-semibold text-sm tracking-tight text-slate-900 dark:text-zinc-50">Vortex</span>
+            </div>
+            <h1 className="hidden font-semibold text-lg text-slate-900 dark:text-zinc-50 md:block tracking-tight">System Console</h1>
           </div>
-          <div className="flex items-center gap-2 text-xs font-mono text-gray-400 bg-[#0b0b10] px-3 py-1.5 rounded border border-[#1a1a24]">
-            <Clock className="w-3.5 h-3.5 text-gray-500" />
-            {currentTime || '00:00:00'}
+
+          <div className="flex items-center gap-3">
+            {/* Context Search Filter */}
+            <div className="relative hidden max-w-xs sm:block">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 dark:text-zinc-500" />
+              <Input
+                type="search"
+                placeholder="Search resources..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-9 w-60 pl-9 pr-4 rounded-md text-sm bg-slate-50/50 dark:bg-zinc-950 border-slate-200 dark:border-zinc-800 focus-visible:ring-1"
+                aria-label="Search ecosystem modules"
+              />
+            </div>
+
+            <Button variant="outline" size="icon" className="relative h-9 w-9 rounded-md border-slate-200 dark:border-zinc-800" aria-label="Notifications">
+              <Bell className="h-4 w-4 text-slate-600 dark:text-zinc-400" />
+              <span className="absolute right-2 top-2 flex h-2 w-2 rounded-full bg-destructive animate-pulse" />
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-offset-background transition-all hover:bg-slate-100 dark:hover:bg-zinc-800">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" alt="User Avatar" />
+                    <AvatarFallback className="font-medium text-xs">AD</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 mt-1 border-slate-200 dark:border-zinc-800">
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none text-slate-900 dark:text-zinc-50">Alex Devlin</p>
+                    <p className="text-xs leading-none text-slate-500 dark:text-zinc-400">alex.devlin@vortex.io</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="gap-2 cursor-pointer"><Users className="h-4 w-4" /> Team Accounts</DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 cursor-pointer"><Settings className="h-4 w-4" /> System Settings</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer">Terminate Session</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
-        {/* SPLIT VIEW WORKSPACE */}
-        <div className="flex-1 flex overflow-hidden">
-          
-          {/* FLEET LIST (Left Middle) */}
-          <section className="w-80 border-r border-[#1a1a24] bg-[#050508] flex flex-col" aria-label="Fleet List">
-            <div className="p-4 border-b border-[#1a1a24]">
-              <h2 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <Monitor className="w-3.5 h-3.5" />
-                Tesvrix Fleet
-              </h2>
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" />
-                <input 
-                  type="text" 
-                  placeholder="Search Node Identifier..." 
-                  className="w-full bg-[#0b0b10] border border-[#1a1a24] text-xs text-white rounded px-9 py-2 focus:outline-none focus:border-red-500/50 transition-colors"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  aria-label="Search devices"
-                />
-              </div>
-            </div>
-            
-            <ul className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-              {FLEET_DEVICES.filter(d => d.name.toLowerCase().includes(searchQuery.toLowerCase())).map((device) => (
-                <li key={device.id}>
-                  <button className={`w-full flex items-center justify-between p-3 rounded-md transition-colors ${
-                    device.id === 'dev_1' ? 'bg-[#111116] border border-[#1a1a24]' : 'hover:bg-[#0b0b10] border border-transparent'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${device.status === 'online' ? 'bg-[#00e676] shadow-[0_0_5px_#00e676]' : 'bg-red-500'}`} />
-                      <div className="flex flex-col text-left">
-                        <span className={`text-xs font-medium ${device.id === 'dev_1' ? 'text-white' : 'text-gray-400'}`}>
-                          {/* Emulate blurred/obscured text for inactive items if needed, standard text here */}
-                          {device.name}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono text-gray-600">{device.battery}%</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
+        {/* Dynamic Responsive Workspace Container */}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl w-full mx-auto">
+          {/* Degraded Status System Alert */}
+          <Alert variant="destructive" className="border-destructive/20 bg-destructive/5 dark:bg-destructive/10 text-destructive-foreground">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle className="font-semibold tracking-tight">Degraded Infrastructure Performance Detected</AlertTitle>
+            <AlertDescription className="text-xs opacity-90 mt-1">
+              Cluster Node Region US-East (KV Storage) reports latency anomalies exceeding SLA targets. Internal routing rules have dynamically shifted traffic weights.
+            </AlertDescription>
+          </Alert>
 
-          {/* ACTIVE DEVICE DETAILS (Right Area) */}
-          <section className="flex-1 bg-[#050508] overflow-y-auto custom-scrollbar p-6 lg:p-8" aria-label="Device Details">
-            
-            {/* Target Header */}
-            <div className="flex justify-between items-start mb-8">
-              <div>
-                <h2 className="text-2xl font-semibold text-white mb-1 flex items-center gap-3">
-                  Xiaomi 23076RN4BI
-                </h2>
-                <div className="flex items-center gap-2 text-xs font-mono text-gray-500">
-                  <Shield className="w-3.5 h-3.5 text-gray-600" />
-                  <span className="opacity-50">#</span> {FLEET_DEVICES[0].hash}
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 px-3 py-1 bg-[#00e676]/10 border border-[#00e676]/30 rounded text-[#00e676] text-[10px] font-bold tracking-widest uppercase">
-                  <div className="w-1.5 h-1.5 rounded-full bg-[#00e676]" />
-                  Uplink Active
-                </div>
-                <button className="flex items-center gap-2 px-3 py-1 bg-red-950/20 border border-red-900/50 rounded text-red-500 hover:bg-red-900/40 transition-colors text-[10px] font-bold tracking-widest uppercase">
-                  <AlertTriangle className="w-3 h-3" />
-                  Delete Node
-                </button>
-              </div>
-            </div>
-
-            {/* Telemetry Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-8">
-              <StatCard 
-                title="Energy Cell" icon={Battery} 
-                value="69%" subtitle="⚡ Discharging" progress={69} 
-              />
-              <StatCard 
-                title="Storage Unit" icon={HardDrive} 
-                value="87GB" subtitle="82% Capacity Occupied" progress={82} 
-              />
-              <StatCard 
-                title="Memory Core" icon={Cpu} 
-                value="116MB" subtitle="88% Computational Load" progress={88} 
-              />
-              <StatCard 
-                title="Identifier Sigma" icon={Settings} 
-              >
-                <div className="text-sm font-mono text-gray-300 blur-[2px] select-none mt-1">
-                  IMSI: 310260000000000
-                </div>
-                <div className="text-[10px] text-gray-500 mt-2">SIM Data</div>
-              </StatCard>
-
-              <StatCard title="Identifier Slot 1" icon={Settings}>
-                <div className="text-sm font-bold text-gray-500 tracking-wider mt-1">HIDDEN</div>
-                <div className="text-[10px] text-gray-600 mt-2">Not Set</div>
-              </StatCard>
-
-              <StatCard title="Network Control" icon={Wifi}>
-                <div className="space-y-2 mt-1">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="flex items-center gap-2 text-gray-400"><Wifi className="w-3.5 h-3.5"/> WIFI</span>
-                    <span className="text-red-500 text-[10px] font-bold px-1.5 py-0.5 border border-red-900/50 rounded bg-red-950/20">OFF</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="flex items-center gap-2 text-gray-400"><Bluetooth className="w-3.5 h-3.5"/> BT</span>
-                    <span className="text-[#00e676] text-[10px] font-bold px-1.5 py-0.5 border border-[#00e676]/30 rounded bg-[#00e676]/10">ON</span>
-                  </div>
-                </div>
-              </StatCard>
-
-              <StatCard title="Audio Engine" icon={Volume2}>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-lg font-bold text-white w-12">V:80%</span>
-                  <div className="flex items-center gap-1">
-                    <button className="w-6 h-6 rounded bg-[#1a1a24] hover:bg-[#2a2a35] flex items-center justify-center border border-[#2a2a35]"><Minus className="w-3 h-3 text-gray-400"/></button>
-                    <div className="w-16 h-1 bg-[#1a1a24] rounded-full overflow-hidden">
-                      <div className="bg-red-600 h-full w-[80%] shadow-[0_0_8px_rgba(220,38,38,0.6)]" />
-                    </div>
-                    <button className="w-6 h-6 rounded bg-[#1a1a24] hover:bg-[#2a2a35] flex items-center justify-center border border-[#2a2a35]"><Plus className="w-3 h-3 text-gray-400"/></button>
-                  </div>
-                </div>
-                <div className="text-[10px] text-gray-500 mt-2">Media Stream Level</div>
-              </StatCard>
-
-              <StatCard title="IP Protocol" icon={Globe}>
-                <div className="text-sm font-mono text-gray-300 mt-1 flex items-center gap-2">
-                  <span className="blur-[3px] select-none">192.168.1.</span>2:1
-                </div>
-                <div className="text-[10px] text-gray-500 mt-2">Network Interface</div>
-              </StatCard>
-
-              <StatCard title="Visual State" icon={Monitor}>
-                <div className="text-sm font-bold text-gray-200 mt-1">ON (LOCKED)</div>
-                <div className="text-[10px] text-gray-500 mt-2">Display Hardware Status</div>
-              </StatCard>
-
-              <StatCard title="OS Architecture" icon={TerminalSquare}>
-                <div className="text-sm font-bold text-gray-200 mt-1">Android 15</div>
-                <div className="text-[10px] text-gray-500 mt-2">Kernel Build Level</div>
-              </StatCard>
-
-              <StatCard title="Last Telemetry" icon={Clock}>
-                <div className="text-sm font-bold text-gray-200 mt-1">12:06:05 PM</div>
-                <div className="text-[10px] text-gray-500 mt-2">Sync Timestamp</div>
-              </StatCard>
-            </div>
-
-            {/* Access Authority Protocols Table */}
+          {/* Action Optimization Toolbar */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200/60 dark:border-zinc-800/60 pb-5">
             <div>
-              <h3 className="text-xs font-bold text-red-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Access Authority Protocols
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {PERMISSIONS.map((perm, idx) => (
-                  <PermissionBadge key={idx} label={perm.label} status={perm.status} />
-                ))}
-              </div>
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">Operational Infrastructure</h2>
+              <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">Real-time application layer state telemetry and continuous optimization models.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSync} 
+                disabled={isRefreshing}
+                className="h-9 gap-2 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 font-medium"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} /> Sync State
+              </Button>
+              
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="h-9 gap-2 shadow-sm font-medium">
+                    <Plus className="h-4 w-4" /> Register Node
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px] border-slate-200 dark:border-zinc-800">
+                  <DialogHeader>
+                    <DialogTitle className="tracking-tight text-xl">Register New Cluster Node</DialogTitle>
+                    <DialogDescription className="text-xs text-slate-500">
+                      Provision compute or cache allocations directly inside the target geographical route boundary.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="space-y-1.5">
+                      <label htmlFor="node-name" className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Node Identifier</label>
+                      <Input id="node-name" placeholder="e.g. edge-compute-fra-02" className="h-9 border-slate-200 dark:border-zinc-800" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label htmlFor="node-type" className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-zinc-400">Target Type Architecture</label>
+                      <Select defaultValue="gateway">
+                        <SelectTrigger id="node-type" className="h-9 border-slate-200 dark:border-zinc-800">
+                          <SelectValue placeholder="Select type mapping" />
+                        </SelectTrigger>
+                        <SelectContent className="border-slate-200 dark:border-zinc-800">
+                          <SelectItem value="gateway">API Gateway Router</SelectItem>
+                          <SelectItem value="worker">Edge Execution Worker</SelectItem>
+                          <SelectItem value="storage">Global KV Store Partition</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="submit" size="sm" onClick={() => toast.success("Cluster provisioning sequence initiated successfully.")}>Initiate Build Sequence</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+
+          {/* Core Analytics Cards Grid Layout */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-slate-200/80 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-zinc-400">Gross Request Volume</CardTitle>
+                <Users className="h-4 w-4 text-slate-400 dark:text-zinc-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">8.84M</div>
+                <p className="text-xs text-emerald-600 dark:text-emerald-500 font-medium flex items-center gap-1 mt-1">
+                  <TrendingUp className="h-3 w-3" /> +14.2% <span className="text-slate-400 dark:text-zinc-500 font-normal">vs previous cycle</span>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200/80 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-zinc-400">Mean Edge Latency</CardTitle>
+                <Activity className="h-4 w-4 text-slate-400 dark:text-zinc-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">14.2ms</div>
+                <p className="text-xs text-emerald-600 dark:text-emerald-500 font-medium flex items-center gap-1 mt-1">
+                  <TrendingUp className="h-3 w-3" /> -4.1% <span className="text-slate-400 dark:text-zinc-500 font-normal">vs trailing hour</span>
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200/80 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-zinc-400">Resource Saturation</CardTitle>
+                <CreditCard className="h-4 w-4 text-slate-400 dark:text-zinc-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">64.8%</div>
+                <div className="mt-2.5">
+                  <Progress value={64.8} className="h-1.5 bg-slate-100 dark:bg-zinc-800" aria-label="Resource Saturation Meter" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200/80 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-zinc-400">Global Service SLA</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-slate-400 dark:text-zinc-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold tracking-tight text-slate-900 dark:text-zinc-50">99.64%</div>
+                <p className="text-xs text-amber-600 dark:text-amber-500 font-medium flex items-center gap-1 mt-1">
+                  <AlertCircle className="h-3 w-3" /> -0.12% <span className="text-slate-400 dark:text-zinc-500 font-normal">impact due to US-East node</span>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Interactive Multi-View Component Control Matrix */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
+              <TabsList className="h-9 items-center p-0.5 bg-slate-100/80 dark:bg-zinc-800 rounded-lg">
+                <TabsTrigger value="overview" className="h-8 px-4 rounded-md text-sm font-medium transition-all shadow-none">Live Telemetry Ledger</TabsTrigger>
+                <TabsTrigger value="topology" className="h-8 px-4 rounded-md text-sm font-medium transition-all shadow-none">Infrastructure Analysis</TabsTrigger>
+              </TabsList>
+
+              {/* Conditional Display Context Filtering */}
+              {activeTab === "overview" && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative block sm:hidden w-full">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400 dark:text-zinc-500" />
+                    <Input
+                      type="search"
+                      placeholder="Search nodes..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-8 pl-9 bg-white dark:bg-zinc-950 text-xs w-full border-slate-200 dark:border-zinc-800"
+                    />
+                  </div>
+                  <Select value={filterType} onValueChange={setFilterType}>
+                    <SelectTrigger className="h-8 w-full sm:w-[150px] bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-xs">
+                      <Filter className="h-3 w-3 mr-1.5 opacity-60" />
+                      <SelectValue placeholder="Node Architecture" />
+                    </SelectTrigger>
+                    <SelectContent className="border-slate-200 dark:border-zinc-800">
+                      <SelectItem value="all">All Modules</SelectItem>
+                      <SelectItem value="gateway">API Gateway</SelectItem>
+                      <SelectItem value="worker">Edge Worker</SelectItem>
+                      <SelectItem value="storage">KV Storage</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
-          </section>
-        </div>
-      </main>
+            {/* View Architecture: Live Metrics Grid Ledger */}
+            <TabsContent value="overview" className="border-none p-0 focus-visible:ring-0">
+              <Card className="border-slate-200/80 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900 overflow-hidden">
+                <div className="overflow-x-auto w-full">
+                  <Table>
+                    <TableHeader className="bg-slate-50/70 dark:bg-zinc-900/50">
+                      <TableRow className="hover:bg-transparent border-slate-200 dark:border-zinc-800">
+                        <TableHead className="w-[100px] text-xs font-semibold uppercase tracking-wider">Node ID</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider">Admin Custodian</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider">Module Class</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider">Status</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider text-right">Throughput</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider text-right">Performance SLA</TableHead>
+                        <TableHead className="text-xs font-semibold uppercase tracking-wider text-right">Last Verified</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredMetrics.length > 0 ? (
+                        filteredMetrics.map((row) => (
+                          <TableRow key={row.id} className="border-slate-200 dark:border-zinc-800 hover:bg-slate-50/50 dark:hover:bg-zinc-800/40 transition-colors">
+                            <TableCell className="font-mono font-medium text-xs text-slate-900 dark:text-zinc-50">{row.id}</TableCell>
+                            <TableCell className="text-sm font-medium text-slate-700 dark:text-zinc-300">{row.user}</TableCell>
+                            <TableCell className="text-xs text-slate-500 dark:text-zinc-400">{row.type}</TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant="outline"
+                                className={`font-semibold px-2 py-0.5 text-[11px] rounded-full uppercase tracking-wider ${
+                                  row.status === "Active" 
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
+                                    : row.status === "Degraded"
+                                    ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20"
+                                    : "bg-slate-50 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700"
+                                }`}
+                              >
+                                {row.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right text-xs font-medium font-mono text-slate-700 dark:text-zinc-300">{row.volume}</TableCell>
+                            <TableCell className="text-right">
+                              <span className={`text-xs font-mono font-semibold ${row.performance >= 98 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                                {row.performance}%
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right text-xs text-slate-400 dark:text-zinc-500">{row.date}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow className="hover:bg-transparent border-slate-200 dark:border-zinc-800">
+                          <TableCell colSpan={7} className="h-32 text-center text-sm text-slate-400 dark:text-zinc-500">
+                            No operational nodes match the query profile parameters.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <CardFooter className="flex items-center justify-between border-t border-slate-200 dark:border-zinc-800 px-6 py-4 bg-slate-50/30 dark:bg-zinc-900/20">
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+                    Displaying <span className="font-semibold text-slate-700 dark:text-zinc-300">{filteredMetrics.length}</span> of <span className="font-semibold text-slate-700 dark:text-zinc-300">{metricsData.length}</span> provisioned nodes globally.
+                  </p>
+                  <Button variant="outline" size="sm" className="h-8 text-xs font-medium gap-1.5 border-slate-200 dark:border-zinc-800">
+                    <Download className="h-3 w-3" /> Fetch Logs
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
 
-      {/* Global Styles for Scrollbar */}
-      <style dangerouslySetInnerHTML={{__html: `
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #050508;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #1a1a24;
-          border-radius: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #2a2a35;
-        }
-      `}} />
+            {/* View Architecture: Interactive Deep-Dive Explanatory Section */}
+            <TabsContent value="topology" className="border-none p-0 focus-visible:ring-0">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <Card className="lg:col-span-2 border-slate-200/80 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
+                  <CardHeader>
+                    <CardTitle className="tracking-tight text-lg">System Cluster Load Mapping</CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      Real-time ingress request saturation mapping models mapped by execution profile metrics.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-700 dark:text-zinc-300">API Gateway Routing Mesh</span>
+                        <span className="font-mono text-slate-500">88.4% capacity reached</span>
+                      </div>
+                      <Progress value={88.4} className="h-2 bg-slate-100 dark:bg-zinc-800" aria-label="API Gateway Load Tracker" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-700 dark:text-zinc-300">Edge Function Serverless Compute v2</span>
+                        <span className="font-mono text-slate-500">41.2% capacity reached</span>
+                      </div>
+                      <Progress value={41.2} className="h-2 bg-slate-100 dark:bg-zinc-800" aria-label="Serverless Compute Load Tracker" />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium text-slate-700 dark:text-zinc-300">Global Key-Value Distributed Store</span>
+                        <span className="font-mono text-slate-500">92.6% capacity reached</span>
+                      </div>
+                      <Progress value={92.6} className="h-2 bg-slate-100 dark:bg-zinc-800" aria-label="KV Store Load Tracker" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-slate-200/80 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
+                  <CardHeader>
+                    <CardTitle className="tracking-tight text-lg">Ecosystem Operations Knowledge Base</CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      Frequently observed runtime operational error configurations.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Accordion type="single" collapsible className="w-full text-xs">
+                      <AccordionItem value="item-1" className="border-slate-200 dark:border-zinc-800">
+                        <AccordionTrigger className="text-slate-700 dark:text-zinc-300 font-medium hover:no-underline py-2.5">
+                          Handling TLS handshake fallback loops?
+                        </AccordionTrigger>
+                        <AccordionContent className="text-slate-500 dark:text-zinc-400 leading-relaxed pb-3">
+                          Verify origin certificate configurations match downstream security parameters inside the environment control ledger.
+                        </AccordionContent>
+                      </AccordionItem>
+                      <AccordionItem value="item-2" className="border-slate-200 dark:border-zinc-800">
+                        <AccordionTrigger className="text-slate-700 dark:text-zinc-300 font-medium hover:no-underline py-2.5">
+                          Enforcing D1 migration locking bounds?
+                        </AccordionTrigger>
+                        <AccordionContent className="text-slate-500 dark:text-zinc-400 leading-relaxed pb-3">
+                          Execute high-concurrency mutation queries utilizing precise isolation wrappers inside explicit programmatic worker logic sequences.
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
     </div>
   );
 }
