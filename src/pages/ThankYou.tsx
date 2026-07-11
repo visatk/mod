@@ -1,6 +1,7 @@
-import React from "react";
+
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle2, Download, ArrowRight, LayoutDashboard, Mail } from "lucide-react";
 
@@ -52,16 +53,16 @@ export default function ThankYou() {
         </div>
 
         <div className="grid sm:grid-cols-2 gap-4 w-full mt-12 animate-in fade-in duration-700 delay-500 fill-mode-both">
-          <Button variant="outline" size="lg" className="h-14 gap-2 border-white/20 text-white hover:bg-white/5" asChild>
-            <Link to="/">
+          <Link to="/">
+            <Button variant="outline" size="lg" className="w-full h-14 gap-2 border-white/20 text-white hover:bg-white/5">
               <LayoutDashboard className="w-4 h-4" /> Go to Dashboard
-            </Link>
-          </Button>
-          <Button variant="ghost" size="lg" className="h-14 gap-2 text-zinc-300 hover:text-white" asChild>
-            <Link to="/">
+            </Button>
+          </Link>
+          <Link to="/">
+            <Button variant="ghost" size="lg" className="w-full h-14 gap-2 text-zinc-300 hover:text-white">
               Explore More Products <ArrowRight className="w-4 h-4" />
-            </Link>
-          </Button>
+            </Button>
+          </Link>
         </div>
       </div>
     </div>

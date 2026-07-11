@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { ArrowRight, CheckCircle2, Star } from "lucide-react";
+import { ArrowRight, Star } from "lucide-react";
 
 const PRODUCTS = [
   {
@@ -60,8 +60,8 @@ export default function Home() {
               </p>
             </div>
             <div className="space-x-4">
-              <Button size="lg" className="h-14 px-8 text-lg shadow-[0_0_20px_rgba(124,58,237,0.4)] hover:shadow-[0_0_35px_rgba(124,58,237,0.7)] transition-all hover:-translate-y-1" asChild>
-                <a href="#products">Explore Library</a>
+              <Button size="lg" className="h-14 px-8 text-lg shadow-[0_0_20px_rgba(124,58,237,0.4)] hover:shadow-[0_0_35px_rgba(124,58,237,0.7)] transition-all hover:-translate-y-1" onClick={() => document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })}>
+                Explore Library
               </Button>
             </div>
           </div>
