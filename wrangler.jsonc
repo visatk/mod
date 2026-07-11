@@ -18,8 +18,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "viteapp",
-      "database_id": "9909fa7a-c277-4b38-96bf-b97a8008dece"
+      "database_name": "king-db",
+      "database_id": "4314a9ec-3979-4ca8-b701-08116949484c"
     }
   ]
 }
